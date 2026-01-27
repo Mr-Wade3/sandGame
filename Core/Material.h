@@ -14,14 +14,14 @@ enum class MaterialID : uint16_t {
 
     Sand,
     Stone,
-    Dirt,
+    // Dirt,
 
     Water,
-    Oil,
-    Lava,
+    // Oil,
+    // Lava,
 
-    Smoke,
-    Steam,
+    // Smoke,
+    // Steam,
 
     Fire,
 
@@ -66,3 +66,10 @@ struct Pixel {
 };
 
 extern MaterialDef Materials[(int)MaterialID::COUNT];
+
+inline const MaterialDef& mat(MaterialID id);
+bool isdenserThan(Pixel p1, Pixel p2);
+bool isdenserThan(MaterialDef m1, MaterialDef m2);
+void tryIgnite(Pixel& p);
+void exchangeHeat(Pixel& a, Pixel& b);
+void updatePhase(Pixel& p);

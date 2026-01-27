@@ -22,7 +22,20 @@ MaterialDef Materials[(int)MaterialID::COUNT] = {
         5, 0.9f, 0.1f,
         20.0f, 0.0f, 1700.0f, 0.0f,
         false, -1,
-        0xFFC2B280,
+        0xFFCCB233,
+        false,
+        false, true, true
+    },
+
+    // Stone
+    {
+        MaterialID::Stone,
+        "Stone",
+        MaterialState::Solid,
+        10, 0.9f, 0.0f,
+        20.0f, 0.0f, 1700.0f, 0.0f,
+        false, -1,
+        0xFF808080,
         false,
         false, true, true
     },
@@ -35,7 +48,7 @@ MaterialDef Materials[(int)MaterialID::COUNT] = {
         3, 0.02f, 1.0f,
         20.0f, 0.0f, 0.0f, 100.0f,
         false, -1,
-        0xFF3366FF,
+        0xFF33B2CC,
         false,
         false, false, true
     },
@@ -58,6 +71,20 @@ inline const MaterialDef& mat(MaterialID id) {
     return Materials[(int)id];
 }
 
+bool isdenserThan(Pixel p1, Pixel p2)
+{
+    const MaterialDef& m1 = mat(p1.material);
+    const MaterialDef& m2 = mat(p2.material);
+    return m1.density > m2.density;
+}
+
+bool isdenserThan(MaterialDef m1, MaterialDef m2)
+{
+    return m1.density > m2.density;
+}
+
+
+
 void tryIgnite(Pixel& p)
 {
     const auto& m = mat(p.material);
@@ -76,13 +103,13 @@ void exchangeHeat(Pixel& a, Pixel& b)
     b.temperature = avg;
 }
 
-void updatePhase(Pixel& p)
-{
-    const auto& m = mat(p.material);
+// void updatePhase(Pixel& p)
+// {
+//     const auto& m = mat(p.material);
 
-    if (m.boilTemp > 0 && p.temperature > m.boilTemp)
-        p.material = MaterialID::Steam;
+//     if (m.boilTemp > 0 && p.temperature > m.boilTemp)
+//         p.material = MaterialID::Steam;
 
-    if (m.meltTemp > 0 && p.temperature > m.meltTemp)
-        p.material = MaterialID::Lava;
-}
+//     if (m.meltTemp > 0 && p.temperature > m.meltTemp)
+//         p.material = MaterialID::Lava;
+// }
