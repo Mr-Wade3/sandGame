@@ -1,74 +1,143 @@
 #include "Material.h"
+#include <fstream>
+#include <iostream>
+#include <unordered_map>
 
-MaterialDef Materials[(int)MaterialID::COUNT] = {
-    // Empty
-    {
-        MaterialID::Empty,
-        "Empty",
-        MaterialState::Gas,
-        0, 0.0f, 0.0f,
-        20.0f, 0.0f, 0.0f, 0.0f,
-        false, -1,
-        0x00000000,
-        false,
-        false, false, false
-    },
+#include "json.hpp" // nlohmann/json
 
-    // Sand
-    {
-        MaterialID::Sand,
-        "Sand",
-        MaterialState::Powder,
-        5, 0.9f, 0.1f,
-        20.0f, 0.0f, 1700.0f, 0.0f,
-        false, -1,
-        0xFFCCB233,
-        false,
-        false, true, true
-    },
+using json = nlohmann::json;
 
-    // Stone
-    {
-        MaterialID::Stone,
-        "Stone",
-        MaterialState::Solid,
-        10, 0.9f, 0.0f,
-        20.0f, 0.0f, 1700.0f, 0.0f,
-        false, -1,
-        0xFF808080,
-        false,
-        false, true, true
-    },
+// ------------------ Storage ------------------
 
-    // Water
-    {
-        MaterialID::Water,
-        "Water",
-        MaterialState::Liquid,
-        3, 0.02f, 1.0f,
-        20.0f, 0.0f, 0.0f, 100.0f,
-        false, -1,
-        0xFF33B2CC,
-        false,
-        false, false, true
-    },
+static std::vector<MaterialDef> g_materials;
+static std::unordered_map<std::string, MaterialID> g_nameToId;
+uint16_t numOfMaterials;
 
-    // Fire
-    {
-        MaterialID::Fire,
-        "Fire",
-        MaterialState::Plasma,
-        0, 0.0f, 0.0f,
-        800.0f, 0.0f, 0.0f, 0.0f,
-        true, 60,
-        0xFFFF5500,
-        true,
-        false, false, false
+// ----------------- Pre-cache -----------------
+
+MaterialID MAT_EMPTY;
+MaterialID MAT_SAND;
+MaterialID MAT_WATER;
+MaterialID MAT_FIRE;
+
+// ------------------ Helpers ------------------
+   
+static MaterialState parseState(const std::string& s) {
+    if (s == "Solid")   return MaterialState::Solid;
+    if (s == "Powder")  return MaterialState::Powder;
+    if (s == "Liquid")  return MaterialState::Liquid;
+    if (s == "Gas")     return MaterialState::Gas;
+    if (s == "Plasma")  return MaterialState::Plasma;
+
+    throw std::runtime_error("Unknown MaterialState: " + s);
+}
+
+static uint32_t parseColor(const std::string& hex) {
+    // expects "FFAABBCC" or "AARRGGBB"
+    return std::stoul(hex, nullptr, 16);
+}
+
+// ------------------ Loader ------------------
+
+bool loadMaterialsFromJSON(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) {
+        std::cerr << "Failed to open material file: " << path << "\n";
+        return false;
     }
-};
 
-inline const MaterialDef& mat(MaterialID id) {
-    return Materials[(int)id];
+    json j;
+    f >> j;
+
+    // note to self try hardcoding empty as you'll probably always need it
+    // like air in minecraft
+
+    g_materials.clear();
+    g_nameToId.clear();
+
+    // Load "Empty" as it will always be needed
+    MaterialDef Empty{};
+    Empty.name = "Empty";
+    Empty.id = (MaterialID)g_materials.size();
+    
+
+    Empty.state        = parseState("Gas");
+    Empty.density      = 0;
+    Empty.friction     = 0.0f;
+    Empty.dispersion   = 0.0f;
+
+    Empty.temperature  = 20.0f;
+    Empty.ignitionTemp = 0.0f;
+    Empty.meltTemp     = 0.0f;
+    Empty.boilTemp     = 0.0f;
+
+    Empty.consumes     = false;
+    Empty.lifeTime     = -1;
+
+    Empty.color        = parseColor("00000000");
+    Empty.emissive     = false;
+
+    Empty.flammable    = false;
+    Empty.solid        = false;
+    Empty.destructible = false;
+
+    g_nameToId[Empty.name] = Empty.id;
+    g_materials.push_back(Empty);
+
+    for (const auto& jm : j["materials"]) {
+        MaterialDef m{};
+
+        m.name = jm["name"];
+        if (m.name == "Empty") continue;
+        m.id = (MaterialID)g_materials.size();
+        
+
+        m.state        = parseState(jm["state"]);
+        m.density      = jm.value("density", 0);
+        m.friction     = jm.value("friction", 0.0f);
+        m.dispersion   = jm.value("dispersion", 0.0f);
+
+        m.temperature  = jm.value("temperature", 20.0f);
+        m.ignitionTemp = jm.value("ignitionTemp", 0.0f);
+        m.meltTemp     = jm.value("meltTemp", 0.0f);
+        m.boilTemp     = jm.value("boilTemp", 0.0f);
+
+        m.consumes     = jm.value("consumes", false);
+        m.lifeTime     = jm.value("lifeTime", -1);
+
+        m.color        = parseColor(jm["color"]);
+        m.emissive     = jm.value("emissive", false);
+
+        m.flammable    = jm.value("flammable", false);
+        m.solid        = jm.value("solid", false);
+        m.destructible = jm.value("destructible", false);
+
+        g_nameToId[m.name] = m.id;
+        g_materials.push_back(m);
+    }
+
+    std::cout << "Loaded materials: " << g_nameToId.size() << "\n";
+
+    MAT_EMPTY = materialIdByName("Empty");
+    MAT_SAND = materialIdByName("Sand");
+    MAT_WATER = materialIdByName("Water");
+    MAT_FIRE  = materialIdByName("Fire");
+    
+    numOfMaterials = (uint16_t)g_materials.size();
+
+    return true;
+}
+
+// ------------------ Access ------------------
+
+const MaterialDef& mat(MaterialID id) {
+    return g_materials[id];
+}
+
+MaterialID materialIdByName(const std::string& name) {
+    std::cout << "Looking up material: " << name << " ,ID = " << g_nameToId.at(name)
+              << " (map size = " << g_nameToId.size() << ")\n";
+    return g_nameToId.at(name);
 }
 
 bool isdenserThan(Pixel p1, Pixel p2)
@@ -83,7 +152,7 @@ bool isdenserThan(MaterialDef m1, MaterialDef m2)
     return m1.density > m2.density;
 }
 
-
+// ------------------ Simulation ------------------
 
 void tryIgnite(Pixel& p)
 {
@@ -91,8 +160,8 @@ void tryIgnite(Pixel& p)
 
     if (m.flammable && p.temperature > m.ignitionTemp)
     {
-        p.material = MaterialID::Fire;
-        p.life = mat(MaterialID::Fire).lifeTime;
+        p.material = materialIdByName("Fire");
+        p.life = mat(p.material).lifeTime;
     }
 }
 

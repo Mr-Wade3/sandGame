@@ -1,5 +1,8 @@
 #pragma once
 #include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 enum class MaterialState {
     Solid,
@@ -9,28 +12,16 @@ enum class MaterialState {
     Plasma
 };
 
-enum class MaterialID : uint16_t {
-    Empty = 0,
-
-    Sand,
-    Stone,
-    // Dirt,
-
-    Water,
-    // Oil,
-    // Lava,
-
-    // Smoke,
-    // Steam,
-
-    Fire,
-
-    COUNT
-};
+using MaterialID = uint16_t;
+extern MaterialID MAT_EMPTY;
+extern MaterialID MAT_SAND;
+extern MaterialID MAT_WATER;
+extern MaterialID MAT_FIRE;
+extern uint16_t numOfMaterials;
 
 struct MaterialDef {
     MaterialID id;
-    const char* name;
+    std::string name;
 
     // Physics
     MaterialState state;
@@ -65,9 +56,14 @@ struct Pixel {
     bool updated;
 };
 
-extern MaterialDef Materials[(int)MaterialID::COUNT];
+// ------------------ API ------------------
+
+bool loadMaterialsFromJSON(const std::string& path);
+
 
 inline const MaterialDef& mat(MaterialID id);
+MaterialID materialIdByName(const std::string& name);
+
 bool isdenserThan(Pixel p1, Pixel p2);
 bool isdenserThan(MaterialDef m1, MaterialDef m2);
 void tryIgnite(Pixel& p);
