@@ -51,34 +51,33 @@ const int GRID_HEIGHT = HEIGHT / SCALE;
 const int PIXEL_SIZE = WIDTH / GRID_WIDTH;
 
 
-MaterialID DRAW = 1;
-bool CanSwapDraw = true; 
-bool wasDrawingLastFrame = false;
-int mouseX, mouseY;
-bool nextFrame = false;
-bool canNextFrame = true;
-bool pawsed = true;
-bool canPaws = true;
-bool vSync = true;
-bool canChangevSync = true;
+static MaterialID DRAW = 1;
+static bool CanSwapDraw = true; 
+static bool wasDrawingLastFrame = false;
+static int mouseX, mouseY;
+static bool nextFrame = false;
+static bool canNextFrame = true;
+static bool pawsed = true;
+static bool canPaws = true;
+static bool vSync = true;
+static bool canChangevSync = true;
 
 
-double lastTime = glfwGetTime();
-int nbFrames = 0;
+static double lastTime = glfwGetTime();
+static int nbFrames = 0;
 
-int Seed = 0;
+static int Seed = 0;
 
-std::set<CellDataLocal> set;
-std::vector<std::vector<Pixel>> grid(GRID_HEIGHT+2, std::vector<Pixel>(GRID_WIDTH, {
+static std::set<CellDataLocal> set;
+static std::vector<Pixel> grid(GRID_HEIGHT * GRID_WIDTH, {
     (MaterialID)0, // can't use materialIdByName("Empty") or MAT_EMPTY as g_materials hasn't been populated yet, Empty is hard coded to be id: 0
-    20.0f,
+    roomTemp,
     -1,
-    false
-}));
-std::vector<unsigned char> pixels(GRID_WIDTH * GRID_HEIGHT * 4);
+});
+static std::vector<unsigned char> pixels(GRID_WIDTH * GRID_HEIGHT * 4);
 
-unsigned int texture;
-unsigned int VBO, VAO, EBO;
+static unsigned int texture;
+static unsigned int VBO, VAO, EBO;
 
 // void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
 //     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
@@ -120,12 +119,11 @@ void handleMouse(GLFWwindow* window) {
         int gx = xpos / PIXEL_SIZE;
         int gy = ypos / PIXEL_SIZE;
         if (gx >= 0 && gx < GRID_WIDTH && gy >= 0 && gy < GRID_HEIGHT) {
-            if (grid[gy][gx].material != DRAW){
-                grid[gy][gx] = {
+            if (grid[gy * GRID_WIDTH + gx].material != DRAW){
+                grid[gy * GRID_WIDTH + gx] = {
                     DRAW,                 // MaterialID
                     mat(DRAW).temperature,
                     mat(DRAW).lifeTime,
-                    false
                 };
                 addPixel(set, gx, gy);
                 wasDrawingLastFrame = true;
@@ -144,11 +142,10 @@ void handleMouse(GLFWwindow* window) {
         int gx = xpos / PIXEL_SIZE;
         int gy = ypos / PIXEL_SIZE;
         if (gx >= 0 && gx < GRID_WIDTH && gy >= 0 && gy < GRID_HEIGHT) {
-            grid[gy][gx] = {
+            grid[gy * GRID_WIDTH + gx] = {
                 MAT_EMPTY,
                 mat(MAT_EMPTY).temperature,
                 mat(MAT_EMPTY).lifeTime,
-                false
             };
             for (int x = -1; x < 2; x++){
                 for (int y = -1; y < 2; y++)
@@ -221,124 +218,6 @@ void processInput(GLFWwindow *window)
 }
 
 
-// Base
-// void updateSub(std::set<CellDataLocal> &setCurrent) {
-//     for (int y = GRID_HEIGHT - 2; y >= 0; --y) {
-//         for (int x = 0; x < GRID_WIDTH; ++x) {
-//             if (grid[y][x] == SAND) {                                           // Sand
-//                 if (grid[y + 1][x] == WATER || grid[y + 1][x] == EMPTY) {                                  // Down
-//                     std::swap(grid[y][x], grid[y + 1][x]);
-//                 } else if (x > 0 && (grid[y + 1][x - 1] == WATER || grid[y + 1][x - 1] == EMPTY)) {              // Down Left
-//                     std::swap(grid[y][x], grid[y + 1][x - 1]);
-//                 } else if (x < GRID_WIDTH - 1 && (grid[y + 1][x + 1] == WATER || grid[y + 1][x + 1] == EMPTY)) { // Down Right
-//                     std::swap(grid[y][x], grid[y + 1][x + 1]);
-//                 } else {
-//                     continue;
-//                 }
-//             }
-//             if (grid[y][x] == WATER) {                                          // Water
-//                 if (grid[y + 1][x] == EMPTY) {                                  // Down
-//                     std::swap(grid[y][x], grid[y + 1][x]);
-//                 } else if (x > 0 && grid[y + 1][x - 1] == EMPTY) {              // Down Left
-//                     std::swap(grid[y][x], grid[y + 1][x - 1]);
-//                 } else if (x < GRID_WIDTH - 1 && grid[y + 1][x + 1] == EMPTY) { // Down Right
-//                     std::swap(grid[y][x], grid[y + 1][x + 1]);
-//                 } else if (rand()%2 == 0){
-//                     if (x > 0 && grid[y][x - 1] == EMPTY) {                     // Left
-//                         std::swap(grid[y][x], grid[y][x - 1]);
-//                     } else if (x < GRID_WIDTH - 1 && grid[y][x + 1] == EMPTY) { // Right
-//                         std::swap(grid[y][x], grid[y][x + 1]);
-//                     }
-//                 } else {
-//                     if (x < GRID_WIDTH - 1 && grid[y][x + 1] == EMPTY) {        // Right
-//                         std::swap(grid[y][x], grid[y][x + 1]);
-//                     } else if (x > 0 && grid[y][x - 1] == EMPTY) {              // Left
-//                         std::swap(grid[y][x], grid[y][x - 1]);
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
-
-// First Try
-// void updateSub(std::vector<CellDataLocal> stackCurrent, std::vector<CellDataLocal> stackNext) {
-//     int x, y;
-//     CellType type;
-//     if (stackCurrent.empty()){
-//         std::cout<< "null";
-//     }
-//     for (CellDataLocal cell = stackCurrent.back(); !stackCurrent.empty(); cell = stackCurrent.back()) {
-// 
-//         if (stackCurrent.size() > 4000){
-//             return;
-//         }
-//         std::cout << stackCurrent.size() << ","; // << cell.x << "," << cell.y;
-//         x = cell.x;
-//         y = cell.y;
-// 
-// 
-//         type = grid[y][x];        
-//         // stackCurrent.pop_back();
-//         if (type == EMPTY || type == WALL){
-//             std::cout << "v";
-//             stackCurrent.pop_back();
-//             continue;
-//         }
-// 
-//         if (grid[y][x] == SAND) { 
-//             std::cout <<  "Snad";                                       // Sand
-//             stackCurrent.pop_back();
-//             if (grid[y + 1][x] == EMPTY) {                                  // Down
-//                 std::swap(grid[y][x], grid[y + 1][x]);
-//             } else if (x > 0 && grid[y + 1][x - 1] == EMPTY) {              // Down :eft
-//                 std::swap(grid[y][x], grid[y + 1][x - 1]);
-//             } else if (x < GRID_WIDTH - 1 && grid[y + 1][x + 1] == EMPTY) { // Down Right
-//                 std::swap(grid[y][x], grid[y + 1][x + 1]);
-//             } else {
-//                 continue;
-//             }
-//         }
-// 
-//         // if (grid[y][x] == WATER) {                                          // Water
-//         //     if (grid[y + 1][x] == EMPTY) {                                  // Down
-//         //         std::swap(grid[y][x], grid[y + 1][x]);
-//         //     } else if (x > 0 && grid[y + 1][x - 1] == EMPTY) {              // Down Left
-//         //         std::swap(grid[y][x], grid[y + 1][x - 1]);
-//         //     } else if (x < GRID_WIDTH - 1 && grid[y + 1][x + 1] == EMPTY) { // Down Right
-//         //         std::swap(grid[y][x], grid[y + 1][x + 1]);
-//         //     } else if (rand()%2 == 0){
-//         //         if (x > 0 && grid[y][x - 1] == EMPTY) {                     // Left
-//         //             std::swap(grid[y][x], grid[y][x - 1]);
-//         //         } else if (x < GRID_WIDTH - 1 && grid[y][x + 1] == EMPTY) { // Right
-//         //             std::swap(grid[y][x], grid[y][x + 1]);
-//         //         }
-//         //     } else {
-//         //         if (x < GRID_WIDTH - 1 && grid[y][x + 1] == EMPTY) {        // Right
-//         //             std::swap(grid[y][x], grid[y][x + 1]);
-//         //         } else if (x > 0 && grid[y][x - 1] == EMPTY) {              // Left
-//         //             std::swap(grid[y][x], grid[y][x - 1]);
-//         //         }
-//         //     }
-//         // }
-//         // stackCurrent.pop_back();
-// 
-//         stackNext.push_back({x - 1, y - 1}); //nw
-//         stackNext.push_back({x - 1, y    }); // w
-//         stackNext.push_back({x - 1, y + 1}); //sw
-//         stackNext.push_back({x    , y + 1}); //s
-//         stackNext.push_back({x + 1, y + 1}); //se
-//         stackNext.push_back({x + 1, y    }); // e
-//         stackNext.push_back({x + 1, y - 1}); //ne
-//         stackNext.push_back({x    , y - 1}); //n
-//         std::cout << stackNext.size();
-//     }
-//     stackCurrent.clear();
-//     std::cout << "c" << stackFlag << " ";
-// }
-
-
 void updateSub(std::set<CellDataLocal> &setCurrent) {
     int x, y, xn, xp, yn, yp;
     bool moved;
@@ -352,61 +231,61 @@ void updateSub(std::set<CellDataLocal> &setCurrent) {
         }
         
 
-        Pixel& p = grid[y][x];
+        Pixel& p = grid[y * GRID_WIDTH + x];
         const MaterialDef& m = mat(p.material);
 
 
         // current iteration using isdenserThan causes unwanted behavere with Liquid FIX
         if (m.state == MaterialState::Powder) {                                                  // Powder
-            if (isdenserThan(p, grid[y + 1][x])) {                                  // Down
-                std::swap(grid[y][x], grid[y + 1][x]);
+            if (isdenserThan(p, grid[(y + 1) * GRID_WIDTH + x])) {                                  // Down
+                std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + x]);
                 moved = true;
-            } else if (x > 0 && isdenserThan(p, grid[y + 1][x - 1])) {              // Down Left
-                std::swap(grid[y][x], grid[y + 1][x - 1]);
+            } else if (x > 0 && isdenserThan(p, grid[(y + 1) * GRID_WIDTH + (x - 1)])) {              // Down Left
+                std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + (x - 1)]);
                 moved = true;
-            } else if (x < GRID_WIDTH - 1 && isdenserThan(p, grid[y + 1][x + 1])) { // Down Right
-                std::swap(grid[y][x], grid[y + 1][x + 1]);
+            } else if (x < GRID_WIDTH - 1 && isdenserThan(p, grid[(y + 1) * GRID_WIDTH + (x + 1)])) { // Down Right
+                std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + (x + 1)]);
                 moved = true;
             }
         }
 
         if (m.state == MaterialState::Liquid) {                                                  // Liquid
-            if (grid[y + 1][x].material == MAT_EMPTY) {                                  // Down
-                std::swap(grid[y][x], grid[y + 1][x]);
+            if (isdenserThan(p, grid[(y + 1) * GRID_WIDTH + x])) {                                  // Down
+                std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + x]);
                 moved = true;
-            } else if (x > 0 && grid[y + 1][x - 1].material == MAT_EMPTY) {              // Down Left
-                std::swap(grid[y][x], grid[y + 1][x - 1]);
+            } else if (x > 0 && isdenserThan(p, grid[(y + 1) * GRID_WIDTH + (x - 1)])) {              // Down Left
+                std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + (x - 1)]);
                 moved = true;
-            } else if (x < GRID_WIDTH - 1 && grid[y + 1][x + 1].material == MAT_EMPTY) { // Down Right
-                std::swap(grid[y][x], grid[y + 1][x + 1]);
+            } else if (x < GRID_WIDTH - 1 && isdenserThan(p, grid[(y + 1) * GRID_WIDTH + (x + 1)])) { // Down Right
+                std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + (x + 1)]);
                 moved = true;
             } else if (rand()%2 == 0){                                                           // randomise
-                if (x > 0 && grid[y][x - 1].material == MAT_EMPTY) {                     // Left
-                    std::swap(grid[y][x], grid[y][x - 1]);
+                if (x > 0 && grid[y * GRID_WIDTH + (x - 1)].material == MAT_EMPTY) {                     // Left
+                    std::swap(grid[y * GRID_WIDTH + x], grid[y * GRID_WIDTH + (x - 1)]);
                     moved = true;
-                } else if (x < GRID_WIDTH - 1 && grid[y][x + 1].material == MAT_EMPTY) { // Right
-                    std::swap(grid[y][x], grid[y][x + 1]);
+                } else if (x < GRID_WIDTH - 1 && grid[y * GRID_WIDTH + (x + 1)].material == MAT_EMPTY) { // Right
+                    std::swap(grid[y * GRID_WIDTH + x], grid[y * GRID_WIDTH + (x + 1)]);
                     moved = true;
                 }
             } else {
-                if (x < GRID_WIDTH - 1 && grid[y][x + 1].material == MAT_EMPTY) {        // Right
-                    std::swap(grid[y][x], grid[y][x + 1]);
+                if (x < GRID_WIDTH - 1 && grid[ y * GRID_WIDTH + (x + 1)].material == MAT_EMPTY) {        // Right
+                    std::swap(grid[y * GRID_WIDTH + x], grid[y * GRID_WIDTH + (x + 1)]);
                     moved = true;
-                } else if (x > 0 && grid[y][x - 1].material == MAT_EMPTY) {              // Left
-                    std::swap(grid[y][x], grid[y][x - 1]);
+                } else if (x > 0 && grid[ y * GRID_WIDTH + (x - 1)].material == MAT_EMPTY) {              // Left
+                    std::swap(grid[y * GRID_WIDTH + x], grid[y * GRID_WIDTH + (x - 1)]);
                     moved = true;
                 }
             }
         }
 
-        // Pixel& here = grid[y][x];
+        // Pixel& here = grid[ y * GRID_WIDTH + x];
         // Pixel& below = grid[y+1][x];
 
-        // const MaterialDef& here = mat(grid[y][x].material);
+        // const MaterialDef& here = mat(grid[ y * GRID_WIDTH + x].material);
         // const MaterialDef& below = mat(grid[y+1][x].material);
 
         // if (((here.state != MaterialState::Solid) && (below.state != MaterialState::Solid)) && (below.density < here.density)) {
-        //     std::swap(grid[y][x], grid[y+1][x]);
+        //     std::swap(grid[ y * GRID_WIDTH + x], grid[y+1][x]);
         //     moved = true;
         // }
 
@@ -429,12 +308,13 @@ void updateSub(std::set<CellDataLocal> &setCurrent) {
             // xp = (x + 1) % GRID_WIDTH;
             // yn = abs(y - 1);
             // yp = (y + 1) % GRID_HEIGHT;
-            // addPixel(setNext, x , y ); // c
-            addPixel(setNext, xn, y ); // w
-            addPixel(setNext, xn, yp); //sw
-            addPixel(setNext, x , yp); //s
+
             addPixel(setNext, xp, yp); //se
+            addPixel(setNext, x , yp); //s
+            addPixel(setNext, xn, yp); //sw
             addPixel(setNext, xp, y ); // e
+            addPixel(setNext, x , y ); // c
+            addPixel(setNext, xn, y ); // w
             addPixel(setNext, xp, yn); //ne
             addPixel(setNext, x , yn); //n
             addPixel(setNext, xn, yn); //nw
@@ -464,7 +344,7 @@ void update(){
 
 
 // writen by chatGPT when stuff breaks Blame this first
-GLuint createGridTexture(const std::vector<std::vector<Pixel>>& grid) {
+GLuint createGridTexture(const std::vector<Pixel>& grid) {
     const int texWidth  = GRID_WIDTH;
     const int texHeight = GRID_HEIGHT;
 
@@ -472,7 +352,7 @@ GLuint createGridTexture(const std::vector<std::vector<Pixel>>& grid) {
 
     for (int y = 0; y < texHeight; ++y) {
         for (int x = 0; x < texWidth; ++x) {
-            Color c = materialToColor(grid[y][x].material);
+            Color c = materialToColor(grid[y * GRID_WIDTH + x].material);
             int index = (y * texWidth + x) * 4;
 
             pixels[index + 0] = c.r;
@@ -511,7 +391,7 @@ GLuint createGridTexture(const std::vector<std::vector<Pixel>>& grid) {
 }
 
 // writen by chatGPT when stuff breaks Blame this first
-void updateGridTexture(GLuint textureID, const std::vector<std::vector<Pixel>>& grid, std::set<CellDataLocal> &setCurrent) {
+void updateGridTexture(GLuint textureID, const std::vector<Pixel>& grid, std::set<CellDataLocal> &setCurrent) {
 
     // std::vector<unsigned char> pixels(GRID_WIDTH * GRID_HEIGHT * 4);
 
@@ -524,7 +404,7 @@ void updateGridTexture(GLuint textureID, const std::vector<std::vector<Pixel>>& 
             continue;
         }
 
-        Color c = materialToColor(grid[y][x].material);
+        Color c = materialToColor(grid[ y * GRID_WIDTH + x].material);
         int i = (y * GRID_WIDTH + x) * 4;
         pixels[i + 0] = c.r;
         pixels[i + 1] = c.g;
@@ -570,8 +450,8 @@ void fps() {
     nbFrames++;
     if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
         // printf and reset timer
-        //printf("%f ms/frame\n", 1000.0/double(nbFrames));
-        printf("%f fps\n", double(nbFrames));
+        printf("%f ms/frame\n", 1000.0/double(nbFrames));
+        //printf("%f fps\n", double(nbFrames));
         nbFrames = 0;
         lastTime += 1.0;
     }

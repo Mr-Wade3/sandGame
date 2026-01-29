@@ -49,11 +49,11 @@ bool loadMaterialsFromJSON(const std::string& path) {
     json j;
     f >> j;
 
-    // note to self try hardcoding empty as you'll probably always need it
-    // like air in minecraft
-
     g_materials.clear();
     g_nameToId.clear();
+
+    g_materials.reserve(j["materials"].size() + 1);
+    g_nameToId.reserve(j["materials"].size() + 1);
 
     // Load "Empty" as it will always be needed
     MaterialDef Empty{};
@@ -66,20 +66,20 @@ bool loadMaterialsFromJSON(const std::string& path) {
     Empty.friction     = 0.0f;
     Empty.dispersion   = 0.0f;
 
-    Empty.temperature  = 20.0f;
-    Empty.ignitionTemp = 0.0f;
-    Empty.meltTemp     = 0.0f;
-    Empty.boilTemp     = 0.0f;
+    Empty.temperature  = roomTemp; // (273.1 + 20) * 10 
+    Empty.ignitionTemp = 0;
+    Empty.meltTemp     = 0;
+    Empty.boilTemp     = 0;
 
-    Empty.consumes     = false;
     Empty.lifeTime     = -1;
 
     Empty.color        = parseColor("00000000");
     Empty.emissive     = false;
 
-    Empty.flammable    = false;
-    Empty.solid        = false;
-    Empty.destructible = false;
+    Empty.flags |= (uint8_t)false << 0; // flammable
+    Empty.flags |= (uint8_t)false << 1; // solid
+    Empty.flags |= (uint8_t)false << 2; // destructible
+    Empty.flags |= (uint8_t)false << 3; // consumes
 
     g_nameToId[Empty.name] = Empty.id;
     g_materials.push_back(Empty);
@@ -97,20 +97,23 @@ bool loadMaterialsFromJSON(const std::string& path) {
         m.friction     = jm.value("friction", 0.0f);
         m.dispersion   = jm.value("dispersion", 0.0f);
 
-        m.temperature  = jm.value("temperature", 20.0f);
+        m.temperature  = jm.value("temperature", roomTemp);
         m.ignitionTemp = jm.value("ignitionTemp", 0.0f);
         m.meltTemp     = jm.value("meltTemp", 0.0f);
         m.boilTemp     = jm.value("boilTemp", 0.0f);
 
-        m.consumes     = jm.value("consumes", false);
         m.lifeTime     = jm.value("lifeTime", -1);
 
         m.color        = parseColor(jm["color"]);
         m.emissive     = jm.value("emissive", false);
 
-        m.flammable    = jm.value("flammable", false);
-        m.solid        = jm.value("solid", false);
-        m.destructible = jm.value("destructible", false);
+        m.flags        |= (uint8_t)jm.value("flammable", false)    << 0; // flammable
+        m.flags        |= (uint8_t)jm.value("solid", false)        << 1; // solid
+        m.flags        |= (uint8_t)jm.value("destructible", false) << 2; // destructible
+        m.flags        |= (uint8_t)jm.value("consumes", false)     << 3; // consumes
+        // m.flammable    = jm.value("flammable", false);
+        // m.solid        = jm.value("solid", false);
+        // m.destructible = jm.value("destructible", false);
 
         g_nameToId[m.name] = m.id;
         g_materials.push_back(m);
@@ -135,12 +138,10 @@ const MaterialDef& mat(MaterialID id) {
 }
 
 MaterialID materialIdByName(const std::string& name) {
-    std::cout << "Looking up material: " << name << " ,ID = " << g_nameToId.at(name)
-              << " (map size = " << g_nameToId.size() << ")\n";
     return g_nameToId.at(name);
 }
 
-bool isdenserThan(Pixel p1, Pixel p2)
+bool isdenserThan(Pixel& p1, Pixel& p2)
 {
     const MaterialDef& m1 = mat(p1.material);
     const MaterialDef& m2 = mat(p2.material);
@@ -158,9 +159,9 @@ void tryIgnite(Pixel& p)
 {
     const auto& m = mat(p.material);
 
-    if (m.flammable && p.temperature > m.ignitionTemp)
+    if (m.flags & CAN_IGNITE && p.temperature > m.ignitionTemp)
     {
-        p.material = materialIdByName("Fire");
+        p.material = MAT_FIRE;
         p.life = mat(p.material).lifeTime;
     }
 }
@@ -177,8 +178,8 @@ void exchangeHeat(Pixel& a, Pixel& b)
 //     const auto& m = mat(p.material);
 
 //     if (m.boilTemp > 0 && p.temperature > m.boilTemp)
-//         p.material = MaterialID::Steam;
+//         p.material = materialIdByName("Steam");
 
 //     if (m.meltTemp > 0 && p.temperature > m.meltTemp)
-//         p.material = MaterialID::Lava;
+//         p.material = materialIdByName("Lava");
 // }

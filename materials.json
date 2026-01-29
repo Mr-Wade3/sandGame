@@ -9,7 +9,7 @@
     {
       "name": "Sand",
       "state": "Powder",
-      "density": 5,
+      "density": 16,
       "friction": 0.9,
       "dispersion": 0.1,
       "color": "FFC2B280",
@@ -19,25 +19,34 @@
     {
       "name": "Stone",
       "state": "Solid",
-      "density": 10,
       "color": "FF808080"
     },
     {
       "name": "Water",
       "state": "Liquid",
-      "density": 3,
+      "density": 10,
       "dispersion": 1.0,
-      "boilTemp": 100.0,
+      "meltTemp": 2731,
+      "boilTemp": 3731,
       "color": "FF3366FF"
     },
     {
       "name": "Fire",
       "state": "Plasma",
-      "temperature": 800.0,
+      "temperature": 10731,
       "lifeTime": 60,
       "consumes": true,
       "emissive": true,
       "color": "FFFF5500"
+    },
+    {
+      "name": "Mercury",
+      "state": "Liquid",
+      "density": 135,
+      "dispersion": 1.0,
+      "meltTemp": 2343,
+      "boilTemp": 6299,
+      "color": "FF9A9A9A"
     }
   ]
 }
