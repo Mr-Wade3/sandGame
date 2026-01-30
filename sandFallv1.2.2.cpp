@@ -17,28 +17,9 @@
 #include <set>
 #include <stdlib.h>
 #include <iostream>
+#include <algorithm>
 
-#include <CellData.h>
 #include <Material.h>
-
-class CellDataLocal : CellData{
-public:
-    int x;
-    int y;
-
-    CellDataLocal(int p_x, int p_y)
-    {
-        x = p_x;
-        y = p_y;
-    }
-
-    bool operator< (const CellDataLocal& other) const
-    {
-        if (y != other.y)
-            return y > other.y;
-        return x > other.x;
-    }
-};
 
 
 // const int WIDTH = 1920;
@@ -67,8 +48,14 @@ static double lastTime = glfwGetTime();
 static int nbFrames = 0;
 
 static int Seed = 0;
+uint32_t rng = 0x12345678;
 
-static std::set<CellDataLocal> set;
+std::vector<int> active;
+std::vector<uint8_t> activeMask(GRID_WIDTH * GRID_HEIGHT, 0);
+std::vector<int> activeNext;
+std::vector<uint8_t> activeNextMask(GRID_WIDTH * GRID_HEIGHT, 0);
+
+
 static std::vector<Pixel> grid(GRID_HEIGHT * GRID_WIDTH, {
     (MaterialID)0, // can't use materialIdByName("Empty") or MAT_EMPTY as g_materials hasn't been populated yet, Empty is hard coded to be id: 0
     roomTemp,
@@ -91,6 +78,20 @@ static unsigned int VBO, VAO, EBO;
 //     }
 // }
 
+inline int idx(int x, int y) {
+    return y * GRID_WIDTH + x;
+}
+
+inline int ix(int i) { return i % GRID_WIDTH; }
+inline int iy(int i) { return i / GRID_WIDTH; }
+
+
+inline bool randBit() {
+    rng ^= rng << 13;
+    rng ^= rng >> 17;
+    rng ^= rng << 5;
+    return rng & 1;
+}
 
 struct Color {
     unsigned char r, g, b, a;
@@ -107,10 +108,16 @@ Color materialToColor(MaterialID id) {
     };
 }
 
+inline void addActive(std::vector<int> &active, std::vector<uint8_t> &activeMask, int x, int y) {
+    if (x < 0 || x >= GRID_WIDTH || y < 0 || y >= GRID_HEIGHT) return;
 
-void addPixel(std::set<CellDataLocal> &s, int x, int y){
-    s.insert({x, y});
+    int i = y * GRID_WIDTH + x;
+    if (!activeMask[i]) {
+        activeMask[i] = 1;
+        active.push_back(i);
+    }
 }
+
 
 void handleMouse(GLFWwindow* window) {
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
@@ -125,7 +132,7 @@ void handleMouse(GLFWwindow* window) {
                     mat(DRAW).temperature,
                     mat(DRAW).lifeTime,
                 };
-                addPixel(set, gx, gy);
+                addActive(active, activeMask, gx, gy);
                 wasDrawingLastFrame = true;
             }
 
@@ -151,7 +158,7 @@ void handleMouse(GLFWwindow* window) {
                 for (int y = -1; y < 2; y++)
                 {
                     if (!(x == 0 && y == 0)){
-                        addPixel(set, gx + x, gy + y);
+                        addActive(active, activeMask, gx + x, gy + y);
                     }
                 }   
             }
@@ -218,14 +225,18 @@ void processInput(GLFWwindow *window)
 }
 
 
-void updateSub(std::set<CellDataLocal> &setCurrent) {
+void updateSub() {
     int x, y, xn, xp, yn, yp;
     bool moved;
-    std::set<CellDataLocal> setNext;
-    for (CellDataLocal cell : setCurrent){
+
+
+    for (int i : active){
+
+        activeMask[i] = 0;
         moved = false;
-        x = cell.x;
-        y = cell.y;
+        x = ix(i);
+        y = iy(i);
+
         if(y < 0 || y > GRID_HEIGHT - 2 || x > GRID_WIDTH - 1 || x < 0) {
             continue;
         }
@@ -259,7 +270,7 @@ void updateSub(std::set<CellDataLocal> &setCurrent) {
             } else if (x < GRID_WIDTH - 1 && isdenserThan(p, grid[(y + 1) * GRID_WIDTH + (x + 1)])) { // Down Right
                 std::swap(grid[y * GRID_WIDTH + x], grid[(y + 1) * GRID_WIDTH + (x + 1)]);
                 moved = true;
-            } else if (rand()%2 == 0){                                                           // randomise
+            } else if (randBit()){                                                           // randomise
                 if (x > 0 && grid[y * GRID_WIDTH + (x - 1)].material == MAT_EMPTY) {                     // Left
                     std::swap(grid[y * GRID_WIDTH + x], grid[y * GRID_WIDTH + (x - 1)]);
                     moved = true;
@@ -278,16 +289,6 @@ void updateSub(std::set<CellDataLocal> &setCurrent) {
             }
         }
 
-        // Pixel& here = grid[ y * GRID_WIDTH + x];
-        // Pixel& below = grid[y+1][x];
-
-        // const MaterialDef& here = mat(grid[ y * GRID_WIDTH + x].material);
-        // const MaterialDef& below = mat(grid[y+1][x].material);
-
-        // if (((here.state != MaterialState::Solid) && (below.state != MaterialState::Solid)) && (below.density < here.density)) {
-        //     std::swap(grid[ y * GRID_WIDTH + x], grid[y+1][x]);
-        //     moved = true;
-        // }
 
         if (p.life > 0)
         { 
@@ -304,24 +305,23 @@ void updateSub(std::set<CellDataLocal> &setCurrent) {
             xp = x + 1;
             yn = y - 1;
             yp = y + 1;
-            // xn = abs(x - 1);
-            // xp = (x + 1) % GRID_WIDTH;
-            // yn = abs(y - 1);
-            // yp = (y + 1) % GRID_HEIGHT;
+            
+            addActive(activeNext, activeNextMask, xp, yp); //se
+            addActive(activeNext, activeNextMask, x , yp); //s
+            addActive(activeNext, activeNextMask, xn, yp); //sw
+            addActive(activeNext, activeNextMask, xp, y ); // e
+            addActive(activeNext, activeNextMask, x , y ); // c
+            addActive(activeNext, activeNextMask, xn, y ); // w
+            addActive(activeNext, activeNextMask, xp, yn); //ne
+            addActive(activeNext, activeNextMask, x , yn); //n
+            addActive(activeNext, activeNextMask, xn, yn); //nw
 
-            addPixel(setNext, xp, yp); //se
-            addPixel(setNext, x , yp); //s
-            addPixel(setNext, xn, yp); //sw
-            addPixel(setNext, xp, y ); // e
-            addPixel(setNext, x , y ); // c
-            addPixel(setNext, xn, y ); // w
-            addPixel(setNext, xp, yn); //ne
-            addPixel(setNext, x , yn); //n
-            addPixel(setNext, xn, yn); //nw
         }
     }
-    setCurrent.clear();
-    std::swap(setCurrent, setNext);
+    active.clear();
+
+    std::swap(active, activeNext);
+    std::swap(activeMask, activeNextMask);
 }
 
 void update(){
@@ -330,14 +330,14 @@ void update(){
         return;
     }
 
-    updateSub(set);
+    updateSub();
 
-    if (set.size() > 4000){
-        std::cout << set.size() << '\n';
-        if (set.size() > 1000000) {
-            throw;
-        }
-    }
+    // if (active.size() > 4000){
+    //     std::cout << active.size() << '\n';
+    //     if (active.size() > 1000000) {
+    //         throw;
+    //     }
+    // }
 
     nextFrame = false;
 }
@@ -391,25 +391,23 @@ GLuint createGridTexture(const std::vector<Pixel>& grid) {
 }
 
 // writen by chatGPT when stuff breaks Blame this first
-void updateGridTexture(GLuint textureID, const std::vector<Pixel>& grid, std::set<CellDataLocal> &setCurrent) {
+void updateGridTexture(GLuint textureID, const std::vector<Pixel>& grid) {
 
-    // std::vector<unsigned char> pixels(GRID_WIDTH * GRID_HEIGHT * 4);
 
     int x, y;
-    for (CellDataLocal cell : setCurrent){
-        x = cell.x;
-        y = cell.y;
+    for (int i : active){
+        x = ix(i);
+        y = iy(i);
 
-        if(y < 0 || y > GRID_HEIGHT - 1 || x > GRID_WIDTH - 1 || x < 0) {
+        if(y < 0 || y >= GRID_HEIGHT || x >= GRID_WIDTH || x < 0) {
             continue;
         }
 
         Color c = materialToColor(grid[ y * GRID_WIDTH + x].material);
-        int i = (y * GRID_WIDTH + x) * 4;
-        pixels[i + 0] = c.r;
-        pixels[i + 1] = c.g;
-        pixels[i + 2] = c.b;
-        pixels[i + 3] = c.a;
+        pixels[i*4 + 0] = c.r;
+        pixels[i*4 + 1] = c.g;
+        pixels[i*4 + 2] = c.b;
+        pixels[i*4 + 3] = c.a;
     }
 
     Color c = materialToColor(DRAW);
@@ -450,7 +448,7 @@ void fps() {
     nbFrames++;
     if ( currentTime - lastTime >= 1.0 ){ // If last prinf() was more than 1 sec ago
         // printf and reset timer
-        printf("%f ms/frame\n", 1000.0/double(nbFrames));
+        printf("%f ms/frame\t %f fps\n", 1000.0/double(nbFrames), double(nbFrames));
         //printf("%f fps\n", double(nbFrames));
         nbFrames = 0;
         lastTime += 1.0;
@@ -459,7 +457,11 @@ void fps() {
 
 int main() {
 
+    prepMaterials();
     if (!loadMaterialsFromJSON("materials.json")) return -1;
+
+    active.reserve(50000);
+    activeNext.reserve(50000);
 
     if (!glfwInit()) return -1;
 
@@ -535,9 +537,10 @@ int main() {
         
         // renderBoxs();
         // renderUpdatesBoxs(set);
-        updateGridTexture(texture, grid, set);
+        updateGridTexture(texture, grid);
         renderTexture(ourShader);
         update();
+        // std::shuffle(active.begin(), active.end(), rng);
 
         glfwSwapBuffers(window);
         glfwPollEvents();

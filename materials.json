@@ -10,10 +10,9 @@
       "name": "Sand",
       "state": "Powder",
       "density": 16,
-      "friction": 0.9,
-      "dispersion": 0.1,
+      "friction": 9,
+      "dispersion": 1,
       "color": "FFC2B280",
-      "solid": true,
       "destructible": true
     },
     {
@@ -25,7 +24,7 @@
       "name": "Water",
       "state": "Liquid",
       "density": 10,
-      "dispersion": 1.0,
+      "dispersion": 1,
       "meltTemp": 2731,
       "boilTemp": 3731,
       "color": "FF3366FF"
@@ -43,7 +42,7 @@
       "name": "Mercury",
       "state": "Liquid",
       "density": 135,
-      "dispersion": 1.0,
+      "dispersion": 1,
       "meltTemp": 2343,
       "boilTemp": 6299,
       "color": "FF9A9A9A"

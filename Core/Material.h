@@ -18,7 +18,8 @@ extern MaterialID MAT_SAND;
 extern MaterialID MAT_WATER;
 extern MaterialID MAT_FIRE;
 
-const uint16_t roomTemp = 2931; // (273.1 + 20) * 10 
+using Temperture = uint16_t;
+const Temperture roomTemp = 2931; // (273.1 + 20) * 10 
 
 extern uint16_t numOfMaterials;
 
@@ -29,14 +30,14 @@ struct MaterialDef {
 
     // Physics
     int density;          // higher sinks
-    float friction;       // movement resistance
-    float dispersion;     // liquid spread
+    uint8_t friction;       // movement resistance
+    uint8_t dispersion;     // liquid spread
 
     // Thermal
-    uint16_t temperature;
-    uint16_t ignitionTemp;
-    uint16_t meltTemp;
-    uint16_t boilTemp;
+    Temperture temperature;
+    Temperture ignitionTemp;
+    Temperture meltTemp;
+    Temperture boilTemp;
 
     MaterialID burnsInto;
     MaterialID boilsInto;
@@ -53,26 +54,32 @@ struct MaterialDef {
 
     // Interaction flags
     uint8_t flags = 0x0;
-    // bool consumes;        // burns away?
     // bool flammable;
     // bool solid;
     // bool destructible;
+    // bool consumes;        // burns away?
+    // bool canMelt;
+    // bool canBoil;
 };
 
 enum MaterialBehaviorFlags : uint8_t {
-    CAN_IGNITE  = 1 << 0,
-    CAN_MELT    = 1 << 1,
-    CAN_BOIL    = 1 << 2,
-    IS_CONSUMED = 1 << 3
+    CAN_IGNITE      = 1 << 0,
+    IS_SOLID        = 1 << 1,
+    IS_DESTRUCTIBLE = 1 << 2,
+    IS_CONSUMED     = 1 << 3,
+    CAN_MELT        = 1 << 4,
+    CAN_BOIL        = 1 << 5
 };
 
 struct Pixel {
     MaterialID material;
-    uint16_t  temperature; // temperature in tenths Kelvin
+    Temperture  temperature; // temperature in tenths Kelvin
     int life;
 };
 
 // ------------------ API ------------------
+
+void prepMaterials();
 
 bool loadMaterialsFromJSON(const std::string& path);
 
