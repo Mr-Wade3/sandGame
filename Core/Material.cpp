@@ -1,9 +1,11 @@
 #include "Material.h"
 #include <fstream>
 #include <iostream>
-#include <unordered_map>
 
 #include "json.hpp" // nlohmann/json
+
+#include "MaterialBehaviors.h"
+#include "Colour.h"
 
 using json = nlohmann::json;
 
@@ -11,7 +13,7 @@ using json = nlohmann::json;
 
 static std::vector<MaterialDef> g_materials;
 static std::unordered_map<std::string, MaterialID> g_nameToId;
-uint16_t numOfMaterials;
+MaterialID lastMaterial;
 
 // ----------------- Pre-cache -----------------
 
@@ -35,6 +37,14 @@ static MaterialState parseState(const std::string& s) {
 static uint32_t parseColor(const std::string& hex) {
     // expects "FFAABBCC" or "AARRGGBB"
     return std::stoul(hex, nullptr, 16);
+}
+
+static UpdateFn stateToUpdate(const MaterialState &state) {
+    if (state == MaterialState::Solid)   return nullptr;
+    if (state == MaterialState::Powder)  return updatePowder;
+    if (state == MaterialState::Liquid)  return updateLiquid;
+    if (state == MaterialState::Gas)     return nullptr;
+    if (state == MaterialState::Plasma)  return nullptr;
 }
 
 // ------------------ Loader ------------------
@@ -75,6 +85,8 @@ void prepMaterials() {
     Empty.flags |= (uint8_t)false << 3; // consumes
     Empty.flags |= (uint8_t)false << 4; // canMelt
     Empty.flags |= (uint8_t)false << 5; // canBoil
+
+    Empty.update = nullptr;
 
     g_nameToId[Empty.name] = Empty.id;
     g_materials.push_back(Empty);
@@ -131,6 +143,8 @@ bool loadMaterialsFromJSON(const std::string& path) {
         // m.solid        = jm.value("solid", false);
         // m.destructible = jm.value("destructible", false);
 
+        m.update = stateToUpdate(m.state);
+
         g_nameToId[m.name] = m.id;
         g_materials.push_back(m);
     }
@@ -142,7 +156,7 @@ bool loadMaterialsFromJSON(const std::string& path) {
     MAT_WATER = materialIdByName("Water");
     MAT_FIRE  = materialIdByName("Fire");
     
-    numOfMaterials = (uint16_t)g_materials.size();
+    lastMaterial = (MaterialID)(g_materials.size() - 1);
 
     return true;
 }
@@ -157,19 +171,8 @@ MaterialID materialIdByName(const std::string& name) {
     return g_nameToId.at(name);
 }
 
-bool isdenserThan(Pixel& p1, Pixel& p2)
-{
-    const MaterialDef& m1 = mat(p1.material);
-    const MaterialDef& m2 = mat(p2.material);
-    return !(m1.flags & IS_SOLID || m2.flags & IS_SOLID) && m1.density > m2.density;
-}
 
-bool isdenserThan(MaterialDef m1, MaterialDef m2)
-{
-    return m1.density > m2.density;
-}
-
-// ------------------ Simulation ------------------
+// ------------------ Material Behaviors ------------------
 
 void tryIgnite(Pixel& p)
 {
@@ -201,4 +204,17 @@ void updatePhase(Pixel& p)
 
     if (m.meltTemp > 0 && p.temperature < m.meltTemp)
         p.material = m.solidifiesInto;
+}
+
+
+// ------------------ Colour ------------------
+Colour materialToColor(MaterialID id) {
+    // aarrggbb
+    uint32_t c = mat(id).color;
+    return {
+        (unsigned char)((c >> 16) & 0xFF),  // r
+        (unsigned char)((c >> 8)  & 0xFF),  // g
+        (unsigned char)(c & 0xFF),          // b
+        (unsigned char)((c >> 24) & 0xFF)   // a
+    };
 }

@@ -1,12 +1,13 @@
-CC2 := C:\Strawberry\c\bin\g++.exe
-CC1 := C:/msys64/ucrt64/bin/g++.exe
+# CC2 := C:\Strawberry\c\bin\g++.exe
+# CC1 := C:/msys64/ucrt64/bin/g++.exe
 CC := C:\mingw64\bin\g++.exe
 INCLUDES := -I./Core -I./include -L./lib -lglfw3 -lopengl32 -lgdi32 -luser32 -lkernel32 
+CORE := .\Core\Material.cpp .\Core\Grid.cpp .\Core\Simulation.cpp .\Core\Active.cpp .\Core\MaterialBehaviors.cpp #.\Core\Renderer.cpp
 
-sandfallv1.2.2: sandfallv1.2.2.cpp
-		$(CC) -Wall .\sandfallv1.2.2.cpp .\Core\Material.cpp $(INCLUDES) -o sandfallv1.2.2.exe
-		.\sandfallv1.2.2.exe
-		del .\sandfallv1.2.2.exe
+Main: Main.cpp
+		$(CC) -Wall .\Main.cpp $(CORE) $(INCLUDES) -o Main.exe
+		.\Main.exe
+		del .\Main.exe
 
 testTriangle: tests\testTriangle.cpp
 		$(CC) -Wall .\tests\testTriangle.cpp $(INCLUDES) -o testTriangle.exe

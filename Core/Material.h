@@ -4,6 +4,11 @@
 #include <unordered_map>
 #include <vector>
 
+
+#include "MaterialID.h"
+#include "Temperture.h"
+#include "Pixel.h"
+
 enum class MaterialState {
     Solid,
     Powder,
@@ -12,16 +17,16 @@ enum class MaterialState {
     Plasma
 };
 
-using MaterialID = uint16_t;
+
 extern MaterialID MAT_EMPTY;
 extern MaterialID MAT_SAND;
 extern MaterialID MAT_WATER;
 extern MaterialID MAT_FIRE;
 
-using Temperture = uint16_t;
-const Temperture roomTemp = 2931; // (273.1 + 20) * 10 
+extern MaterialID lastMaterial;
 
-extern uint16_t numOfMaterials;
+class Grid;
+using UpdateFn = void (*)(Grid &, int, int);
 
 struct MaterialDef {
     MaterialID id;
@@ -60,6 +65,8 @@ struct MaterialDef {
     // bool consumes;        // burns away?
     // bool canMelt;
     // bool canBoil;
+    
+    UpdateFn update;
 };
 
 enum MaterialBehaviorFlags : uint8_t {
@@ -71,11 +78,7 @@ enum MaterialBehaviorFlags : uint8_t {
     CAN_BOIL        = 1 << 5
 };
 
-struct Pixel {
-    MaterialID material;
-    Temperture  temperature; // temperature in tenths Kelvin
-    int life;
-};
+
 
 // ------------------ API ------------------
 
@@ -84,11 +87,12 @@ void prepMaterials();
 bool loadMaterialsFromJSON(const std::string& path);
 
 
-inline const MaterialDef& mat(MaterialID id);
+const MaterialDef& mat(MaterialID id);
 MaterialID materialIdByName(const std::string& name);
 
-bool isdenserThan(Pixel& p1, Pixel& p2);
-bool isdenserThan(MaterialDef m1, MaterialDef m2);
 void tryIgnite(Pixel& p);
 void exchangeHeat(Pixel& a, Pixel& b);
 void updatePhase(Pixel& p);
+
+class Colour;
+Colour materialToColor(MaterialID id);
