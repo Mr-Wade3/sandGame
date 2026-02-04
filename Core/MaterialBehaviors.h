@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Material.h"
 #include "Grid.h"
 

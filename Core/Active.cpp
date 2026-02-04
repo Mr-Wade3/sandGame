@@ -26,6 +26,10 @@ void Active::addActive3x3(int x, int y) {
     int yn = y - 1;
     int yp = y + 1;
     
+    // sw  s se
+    //  w  c  e
+    // nw  n ne
+
     addActive(xp, yp); //se
     addActive(x , yp); //s
     addActive(xn, yp); //sw
