@@ -13,6 +13,7 @@ using json = nlohmann::json;
 
 static std::vector<MaterialDef> g_materials;
 static std::unordered_map<std::string, MaterialID> g_nameToId;
+static std::vector<MaterialPhaseChanges> phaseChanges;
 MaterialID lastMaterial;
 
 // ----------------- Pre-cache -----------------
@@ -21,6 +22,7 @@ MaterialID MAT_EMPTY;
 MaterialID MAT_SAND;
 MaterialID MAT_WATER;
 MaterialID MAT_FIRE;
+MaterialID MAT_STEAM;
 
 // ------------------ Helpers ------------------
    
@@ -43,8 +45,8 @@ static UpdateFn stateToUpdate(const MaterialState &state) {
     if (state == MaterialState::Solid)   return nullptr;
     if (state == MaterialState::Powder)  return updatePowder;
     if (state == MaterialState::Liquid)  return updateLiquid;
-    if (state == MaterialState::Gas)     return nullptr;
-    if (state == MaterialState::Plasma)  return nullptr;
+    if (state == MaterialState::Gas)     return updateGas;
+    if (state == MaterialState::Plasma)  return updatePlasma;
 }
 
 // ------------------ Loader ------------------
@@ -52,6 +54,7 @@ static UpdateFn stateToUpdate(const MaterialState &state) {
 void prepMaterials() {
     g_materials.clear();
     g_nameToId.clear();
+    phaseChanges.clear();
 
     // Load "Empty" as it will always be needed
     MaterialDef Empty{};
@@ -90,6 +93,14 @@ void prepMaterials() {
 
     g_nameToId[Empty.name] = Empty.id;
     g_materials.push_back(Empty);
+
+    MaterialPhaseChanges MPC{};
+    MPC.burnsInto      = "Empty";
+    MPC.boilsInto      = "Empty";
+    MPC.meltsInto      = "Empty";
+    MPC.solidifiesInto = "Empty";
+
+    phaseChanges.push_back(MPC);
 }
 
 bool loadMaterialsFromJSON(const std::string& path) {
@@ -123,10 +134,11 @@ bool loadMaterialsFromJSON(const std::string& path) {
         m.meltTemp       = jm.value("meltTemp", 0);
         m.boilTemp       = jm.value("boilTemp", 0);
 
-        m.burnsInto      = jm.value("burnsInto", 0);
-        m.boilsInto      = jm.value("boilsInto", 0);
-        m.meltsInto      = jm.value("meltsInto", 0);
-        m.solidifiesInto = jm.value("solidifiesInto", 0);
+        MaterialPhaseChanges MPC{};
+        MPC.burnsInto      = jm.value("burnsInto", "Empty");
+        MPC.boilsInto      = jm.value("boilsInto", "Empty");
+        MPC.meltsInto      = jm.value("meltsInto", "Empty");
+        MPC.solidifiesInto = jm.value("solidifiesInto", "Empty");
 
         m.lifeTime       = jm.value("lifeTime", -1);
 
@@ -135,7 +147,7 @@ bool loadMaterialsFromJSON(const std::string& path) {
 
         m.flags         |= (uint8_t)jm.value("flammable", false)      << 0; // flammable
         m.flags         |= (uint8_t)(m.state == MaterialState::Solid) << 1; // solid
-        m.flags         |= (uint8_t)jm.value("destructible", false)   << 2; // destructible
+        m.flags         |= (uint8_t)jm.value("destructible", true)    << 2; // destructible
         m.flags         |= (uint8_t)jm.value("consumes", false)       << 3; // consumes
         m.flags         |= (uint8_t)jm.value("canMelt", false)        << 4; // canMelt
         m.flags         |= (uint8_t)jm.value("canBoil", false)        << 5; // canBoil
@@ -147,18 +159,40 @@ bool loadMaterialsFromJSON(const std::string& path) {
 
         g_nameToId[m.name] = m.id;
         g_materials.push_back(m);
+        phaseChanges.push_back(MPC);
     }
 
     std::cout << "Loaded materials: " << g_nameToId.size() << "\n";
 
-    MAT_EMPTY = materialIdByName("Empty");
-    MAT_SAND = materialIdByName("Sand");
-    MAT_WATER = materialIdByName("Water");
-    MAT_FIRE  = materialIdByName("Fire");
     
     lastMaterial = (MaterialID)(g_materials.size() - 1);
 
     return true;
+}
+
+void addPhaseChanges() {
+    for (int id = 1; id < phaseChanges.size(); id++) {
+        MaterialDef& material = g_materials[id];
+        MaterialPhaseChanges PhaseChanges = phaseChanges[id];
+        material.burnsInto      = materialIdByName(PhaseChanges.burnsInto);
+        material.boilsInto      = materialIdByName(PhaseChanges.boilsInto);
+        material.meltsInto      = materialIdByName(PhaseChanges.meltsInto);
+        material.solidifiesInto = materialIdByName(PhaseChanges.solidifiesInto);
+        if (material.state == MaterialState::Solid)   material.solidifiesInto = material.id;
+        if (material.state == MaterialState::Powder)  material.solidifiesInto = material.id;
+        if (material.state == MaterialState::Liquid)  material.meltsInto      = material.id;;
+        if (material.state == MaterialState::Gas)     material.boilsInto      = material.id;
+        if (material.state == MaterialState::Plasma)  material.burnsInto      = material.id;
+        // std::cout << material.id << " " << material.name << "\n> " << material.burnsInto << "\n> " << material.boilsInto << "\n> " << material.meltsInto << "\n> " << material.solidifiesInto << "\n";
+    }
+}
+
+void preCaching() {
+    MAT_EMPTY = materialIdByName("Empty");
+    MAT_SAND = materialIdByName("Sand");
+    MAT_WATER = materialIdByName("Water");
+    MAT_FIRE  = materialIdByName("Fire");
+    MAT_STEAM = materialIdByName("Steam");
 }
 
 // ------------------ Access ------------------
@@ -185,25 +219,32 @@ void tryIgnite(Pixel& p)
     }
 }
 
-void exchangeHeat(Pixel& a, Pixel& b)
+bool exchangeHeat(Pixel& a, Pixel& b)
 {
-    Temperture avg = (a.temperature + b.temperature) >> 1; // bitshoft left by one should be equent to devide by 2
-    a.temperature = avg;
-    b.temperature = avg;
+    Temperture avg = (a.temperature + b.temperature) >> 1; // bitshift left by one should be equent to devide by 2
+    if (avg != a.temperature){
+        a.temperature = avg;
+        b.temperature = avg;
+        return true;
+    }
+    return false;
 }
 
 void updatePhase(Pixel& p)
 {
     const auto& m = mat(p.material);
 
-    if (m.boilTemp > 0 && p.temperature > m.boilTemp)
+    if (m.boilTemp > 0 && p.temperature > m.boilTemp) {
         p.material = m.boilsInto;
-
-    if (m.meltTemp > 0 && p.temperature > m.meltTemp)
+        return;
+    }
+    if (m.meltTemp > 0 && p.temperature > m.meltTemp) {
         p.material = m.meltsInto;
-
-    if (m.meltTemp > 0 && p.temperature < m.meltTemp)
+        return;
+    }
+    if (m.meltTemp > 0 && p.temperature < m.meltTemp) {
         p.material = m.solidifiesInto;
+    }
 }
 
 

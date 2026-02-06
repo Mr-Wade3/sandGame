@@ -1,0 +1,22 @@
+{
+    "materials": [
+        {
+            "name": "Fire",
+            "state": "Plasma",
+            "temperature": 10731,
+            "lifeTime": 60,
+            "consumes": true,
+            "emissive": true,
+            "color": "FFFF5500"
+        },
+        {
+            "name": "Cold Fire",
+            "state": "Plasma",
+            "temperature": 2831,
+            "lifeTime": 60,
+            "consumes": true,
+            "emissive": true,
+            "color": "FF0055FF"
+        }
+    ]
+}

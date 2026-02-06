@@ -12,8 +12,7 @@
       "density": 16,
       "friction": 9,
       "dispersion": 1,
-      "color": "FFC2B280",
-      "destructible": true
+      "color": "FFC2B280"
     },
     {
       "name": "Stone",

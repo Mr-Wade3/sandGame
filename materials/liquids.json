@@ -1,0 +1,24 @@
+{
+    "materials": [
+        {
+            "name": "Water",
+            "state": "Liquid",
+            "density": 10,
+            "dispersion": 1,
+            "meltTemp": 2731,
+            "boilTemp": 3731,
+            "boilsInto": "Steam",
+            "solidifiesInto": "Ice",
+            "color": "FF3366FF"
+        },
+        {
+            "name": "Mercury",
+            "state": "Liquid",
+            "density": 135,
+            "dispersion": 1,
+            "meltTemp": 2343,
+            "boilTemp": 6299,
+            "color": "FF9A9A9A"
+        }
+    ]
+}

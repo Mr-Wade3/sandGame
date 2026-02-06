@@ -1,0 +1,13 @@
+{
+    "materials": [
+        {
+            "name": "Steam",
+            "state": "Gas",
+            "color": "FFF0F0F0",
+            "meltTemp": 2731,
+            "boilTemp": 3731,
+            "meltsInto": "Water",
+            "solidifiesInto": "Ice"
+        }
+    ]
+}

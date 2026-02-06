@@ -1,5 +1,5 @@
 #include "Renderer.h"
-#include "Material.h"
+#include "Materials\Material.h"
 #include "Colour.h"
 
 #define GLFW_INCLUDE_NONE
@@ -59,13 +59,20 @@ void Renderer::prepWindow(Grid &grid) {
     shader = new Shader("shaders\\vertexShader.vert", "shaders\\fragmentShader.frag");
 
     
+    float u0 = (float)camera.x / grid.width;
+    float v0 = (float)camera.y / grid.height;
+
+    float u1 = (float)(camera.x + camera.width)  / grid.width;
+    float v1 = (float)(camera.y + camera.height) / grid.height;
+
+
     // set up vertex data (and buffer(s)) and configure vertex attributes
     float vertices[] = {
         // positions          // colors           // texture coords
-         1.0f,  1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 0.0f, // top right
-         1.0f, -1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 1.0f, // bottom right
-        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // bottom left
-        -1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 0.0f  // top left 
+         1.0f,  1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   u1, v0, // top right
+         1.0f, -1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   u1, v1, // bottom right
+        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   u0, v1, // bottom left
+        -1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 0.0f,   u0, v0  // top left 
     };
     unsigned int indices[] = {  
         0, 1, 3, // first triangle
@@ -104,7 +111,7 @@ void Renderer::handleMouse(Grid &grid) {
         glfwGetCursorPos(window, &xpos, &ypos);
         int gx = xpos / PIXEL_SIZE;
         int gy = ypos / PIXEL_SIZE;
-        if (gx >= 0 && gx < GRID_WIDTH && gy >= 0 && gy < GRID_HEIGHT) {
+        if (gx >= 0 && gx < grid.width && gy >= 0 && gy < grid.height) {
             if (grid.at(gx, gy).material != DrawMaterial){
                 grid.at(gx, gy) = {
                     DrawMaterial,                 // MaterialID
@@ -127,7 +134,7 @@ void Renderer::handleMouse(Grid &grid) {
         glfwGetCursorPos(window, &xpos, &ypos);
         int gx = xpos / PIXEL_SIZE;
         int gy = ypos / PIXEL_SIZE;
-        if (gx >= 0 && gx < GRID_WIDTH && gy >= 0 && gy < GRID_HEIGHT) {
+        if (gx >= 0 && gx < grid.width && gy >= 0 && gy < grid.height) {
             grid.at(gx, gy) = {
                 MAT_EMPTY,
                 mat(MAT_EMPTY).temperature,
@@ -167,8 +174,20 @@ void Renderer::processInput()
         std::cout << mat(DrawMaterial).name << '\n';
     }
 
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_RELEASE)
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_RELEASE && glfwGetKey(window, GLFW_KEY_UP) == GLFW_RELEASE)
         CanSwapDraw = true;
+    
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS && CanSwapDraw) {
+        CanSwapDraw = false;
+
+        if (DrawMaterial > 1)
+        {
+            DrawMaterial--;
+        } else {
+            DrawMaterial = lastMaterial;
+        }
+        std::cout << mat(DrawMaterial).name << '\n';
+    }
 
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && canPaws) {
         if (pawsed) {
@@ -285,7 +304,57 @@ void Renderer::updateGridTexture(Grid &grid) {
     );
 }
 
+void Renderer::updatePixels(Grid &grid) {
+    int x, y;
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    for (int i : grid.activeNow->active)
+    {
+        int x = grid.ix(i);
+        int y = grid.iy(i);
+
+        if (x < 0 || x >= grid.width || y < 0 || y >= grid.height)
+            continue;
+
+        Colour c = materialToColor(grid.at(x, y).material);
+
+        unsigned char pixel[4] = { c.r, c.g, c.b, c.a };
+
+        // Upload exactly ONE pixel
+        glTexSubImage2D(
+            GL_TEXTURE_2D,
+            0,
+            x,
+            y,
+            1,
+            1,
+            GL_RGBA,
+            GL_UNSIGNED_BYTE,
+            pixel
+        );
+    }
+}
+
 void Renderer::renderTexture() {
+    float u0 = (float)camera.x / GRID_WIDTH;
+    float v0 = (float)camera.y / (HEIGHT / SCALE);
+
+    float u1 = (float)(camera.x + camera.width)  / GRID_WIDTH;
+    float v1 = (float)(camera.y + camera.height) / (HEIGHT / SCALE);
+
+
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    float vertices[] = {
+        // positions          // colors           // texture coords
+         1.0f,  1.0f, 0.0f,   1.0f, 0.0f, 0.0f,   u1, v0, // top right
+         1.0f, -1.0f, 0.0f,   0.0f, 1.0f, 0.0f,   u1, v1, // bottom right
+        -1.0f, -1.0f, 0.0f,   0.0f, 0.0f, 1.0f,   u0, v1, // bottom left
+        -1.0f,  1.0f, 0.0f,   1.0f, 1.0f, 0.0f,   u0, v0  // top left 
+    };
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);   
+
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 

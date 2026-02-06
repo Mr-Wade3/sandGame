@@ -22,6 +22,7 @@ extern MaterialID MAT_EMPTY;
 extern MaterialID MAT_SAND;
 extern MaterialID MAT_WATER;
 extern MaterialID MAT_FIRE;
+extern MaterialID MAT_STEAM;
 
 extern MaterialID lastMaterial;
 
@@ -78,6 +79,15 @@ enum MaterialBehaviorFlags : uint8_t {
     CAN_BOIL        = 1 << 5
 };
 
+struct MaterialPhaseChanges
+{
+    std::string burnsInto;
+    std::string boilsInto;
+    std::string meltsInto;
+    std::string solidifiesInto;
+};
+
+
 
 
 // ------------------ API ------------------
@@ -85,13 +95,15 @@ enum MaterialBehaviorFlags : uint8_t {
 void prepMaterials();
 
 bool loadMaterialsFromJSON(const std::string& path);
+void addPhaseChanges();
+void preCaching();
 
 
 const MaterialDef& mat(MaterialID id);
 MaterialID materialIdByName(const std::string& name);
 
 void tryIgnite(Pixel& p);
-void exchangeHeat(Pixel& a, Pixel& b);
+bool exchangeHeat(Pixel& a, Pixel& b);
 void updatePhase(Pixel& p);
 
 class Colour;

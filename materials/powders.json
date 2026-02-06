@@ -1,0 +1,12 @@
+{
+    "materials": [
+        {
+            "name": "Sand",
+            "state": "Powder",
+            "density": 16,
+            "friction": 9,
+            "dispersion": 1,
+            "color": "FFC2B280"
+        }
+    ]
+}

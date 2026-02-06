@@ -1,0 +1,18 @@
+{
+    "materials": [
+        {
+            "name": "Stone",
+            "state": "Solid",
+            "color": "FF808080"
+        },
+        {
+            "name": "Ice",
+            "state": "Solid",
+            "color": "FF5386FF",
+            "meltTemp": 2731,
+            "boilTemp": 3731,
+            "boilsInto": "Steam",
+            "meltsInto": "Water"
+        }
+    ]
+}

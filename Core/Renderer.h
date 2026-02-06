@@ -8,6 +8,14 @@ using GLuint = unsigned int;
 class Shader;
 struct GLFWwindow;
 
+struct Camera {
+    int x;      // top-left grid cell
+    int y;
+    int width;  // how many grid cells visible
+    int height;
+};
+
+
 class Renderer {
 public:
     Renderer(int width, int height);
@@ -20,6 +28,7 @@ public:
 
     GLuint createGridTexture(Grid &grid);
     void updateGridTexture(Grid &grid);
+    void updatePixels(Grid &grid);
     void renderTexture();
     bool shouldWindowClose();
     void changeVSync();
@@ -29,12 +38,18 @@ public:
     void Terminate();
 
 
+    //todo fix?
     const int WIDTH = 1600;
     const int HEIGHT = 800;
     const int SCALE = 4;
     const int GRID_WIDTH = WIDTH / SCALE;
-    const int GRID_HEIGHT = HEIGHT / SCALE;
     const int PIXEL_SIZE = WIDTH / GRID_WIDTH;
+
+    Camera camera {
+        0, 0,
+        GRID_WIDTH,                // visible cells horizontally
+        HEIGHT / SCALE             // visible cells vertically
+    };
 
     double lastTime;
     int nbFrames = 0;
